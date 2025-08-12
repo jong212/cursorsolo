@@ -97,9 +97,9 @@ async function scrapeNaverNews(maxItems: number): Promise<Article[]> {
   console.log(`🚀 Starting Naver News scraping with new SDS structure`);
   
   const searchUrls = [
-    'https://search.naver.com/search.naver?where=news&query=나는솔로&sort=1&start=1',
-    'https://search.naver.com/search.naver?where=news&query=나는솔로&sort=1&start=11',
-    'https://search.naver.com/search.naver?where=news&query=나는솔로&sort=1&start=21'
+    'https://search.naver.com/search.naver?where=news&query=나솔&sort=1&start=1',
+    'https://search.naver.com/search.naver?where=news&query=나는+솔로&sort=1&start=1',
+    'https://search.naver.com/search.naver?where=news&query=나솔&sort=1&start=11'
   ];
   
   const articles: Article[] = [];
@@ -139,11 +139,8 @@ async function scrapeNaverNews(maxItems: number): Promise<Article[]> {
         
         const itemHtml = newsItem[1];
         
-        // 제목 추출 (headline1 타입의 span)
-        const titleMatch = itemHtml.match(/<span[^>]*class="[^"]*sds-comps-text-type-headline1[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
-        
-        // URL 추출 (제목을 감싸는 a 태그)
-        const urlMatch = itemHtml.match(/<a[^>]*nocr="1"[^>]*href="([^"]*)"[^>]*class="[^"]*BxOYkTUC7zH9xrtyOwDx[^"]*a2OpSM_aSvFbHwpL_f8N[^"]*"[^>]*target="_blank"[^>]*>/i);
+        // 제목과 URL을 함께 추출 (제목을 감싸는 a 태그에서)
+        const titleUrlMatch = itemHtml.match(/<a[^>]*nocr="1"[^>]*href="([^"]*)"[^>]*target="_blank"[^>]*>[\s\S]*?<span[^>]*class="[^"]*sds-comps-text-type-headline1[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
         
         // 요약 추출 (body1 타입의 span)
         const summaryMatch = itemHtml.match(/<span[^>]*class="[^"]*sds-comps-text-type-body1[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
@@ -154,9 +151,9 @@ async function scrapeNaverNews(maxItems: number): Promise<Article[]> {
         // 썸네일 이미지 추출
         const thumbnailMatch = itemHtml.match(/<img[^>]*width="104"[^>]*src="([^"]*)"[^>]*>/i);
         
-        if (titleMatch && urlMatch) {
-          const titleText = extractTextContent(titleMatch[1]);
-          const url = urlMatch[1];
+        if (titleUrlMatch) {
+          const url = titleUrlMatch[1];
+          const titleText = extractTextContent(titleUrlMatch[2]);
           
           // 요약 텍스트 처리
           let summary = titleText;
@@ -199,7 +196,7 @@ async function scrapeNaverNews(maxItems: number): Promise<Article[]> {
                 status: "pending",
                 raw_meta: {
                   scrape_method: 'naver_sds_structure_v2',
-                  search_keyword: '나는솔로',
+                  search_keyword: '나는 솔로',
                   page: pageIndex + 1,
                   press: author,
                   thumbnail_url: thumbnailUrl
@@ -262,7 +259,7 @@ async function scrapeNaverNews(maxItems: number): Promise<Article[]> {
                   status: "pending",
                   raw_meta: {
                     scrape_method: 'backup_pattern_search_v2',
-                    search_keyword: '나는솔로',
+                    search_keyword: '나는 솔로',
                     page: pageIndex + 1
                   },
                   hash

@@ -173,18 +173,14 @@ export default function NaEunSoloNewsPage() {
                 </div>
               </div>
 
-              {result.errors.length > 0 && (
+              {result.error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
                   <h4 className="font-medium text-red-800 dark:text-red-200 mb-2">
-                    ⚠️ 오류 발생 ({result.errors.length}개)
+                    ⚠️ 오류 발생
                   </h4>
-                  <ul className="text-sm space-y-1">
-                    {result.errors.map((err, i) => (
-                      <li key={i} className="text-red-700 dark:text-red-300">
-                        {err.message}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="text-sm text-red-700 dark:text-red-300">
+                    {result.error}
+                  </div>
                 </div>
               )}
             </div>
@@ -266,7 +262,7 @@ export default function NaEunSoloNewsPage() {
                         </a>
                       </h3>
                       <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-600 rounded flex-shrink-0">
-                        {article.sources.name}
+                        {article.author || '네이버뉴스'}
                       </span>
                     </div>
 

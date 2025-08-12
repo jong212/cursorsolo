@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
     // Supabase REST API로 기사 조회 (발행일 최신순 정렬)
     const response = await fetch(
-      `${supabaseUrl}/rest/v1/articles?select=*,sources(name)&order=published_at.desc.nullslast,created_at.desc&limit=${limit}&offset=${offset}`,
+      `${supabaseUrl}/rest/v1/articles?select=*&order=published_at.desc.nullslast,created_at.desc&limit=${limit}&offset=${offset}`,
       {
         headers: {
           "apikey": serviceKey,
