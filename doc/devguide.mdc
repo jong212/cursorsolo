@@ -1,0 +1,215 @@
+---
+alwaysApply: true
+---
+
+Purpose
+When the temporary “Collect” button on the main page is clicked, a manual collection process runs to fetch the latest posts from external sources (news/blog/video) and store them in the Supabase DB (articles table) without duplicates.
+Cron scheduling will be added later; for now, execution happens only via the button.
+
+Scope (This Phase)
+Frontend: One “Run Collection” button on the main page with a result notification (showing inserted/skipped/error counts).
+
+Backend: One Supabase Edge Function (referred to here as crawl_manual). When called, it loops over active sources, fetches and normalizes data, then stores it.
+
+Database: Using articles and sources tables (create with equivalent fields if missing).
+
+Flow Sequence (Summary)
+User clicks the button.
+
+Frontend sends a request to the backend function to start manual collection (in dev mode: temporary token; in production: via server proxy).
+
+The function fetches enabled=true sources from the DB.
+
+For each source, data is fetched and normalized into a standard Article format.
+
+Duplicates are detected using a hash (e.g., canonical_url + title) and skipped.
+
+The function returns statistics: inserted, total seen, skipped, and error list.
+
+The frontend displays a summary result to the user.
+
+Collection Rules
+Triggered only by button clicks (manual run). No live crawling.
+
+Prefer RSS/official APIs. HTML parsing will be added later.
+
+Fail-soft: failure of one source must not stop the entire run.
+
+Deduplication via hash-based unique constraint.
+
+Sort by original published_at when available, otherwise use fetched_at.
+
+Environment & Key Management
+Edge Function: Requires Supabase project URL and service role key.
+
+Frontend: Use temporary credentials only during development; in production, always call via backend proxy to avoid exposing sensitive keys.
+
+Interface Spec (Human-readable)
+Request: Command to start manual collection. Optionally includes an array of source IDs and a max items-per-source limit.
+
+Response: Number inserted, total processed, skipped due to duplicates, and per-source error messages.
+
+Data Model (Description Only)
+sources: Collection source info. Includes name, type (rss/html/api), URL, enabled flag, last success timestamp, and status message.
+
+articles: Collected articles/posts. Includes source ID, title, summary, original URL, canonical URL, thumbnail URL, author, original published date, fetched date, status (approved/pending/etc.), raw metadata, and hash for deduplication.
+
+Public queries should return only approved records via views or RLS policies.
+
+Frontend Requirements
+Button should disable while running to prevent repeated clicks.
+
+Show clear result counts (inserted/skipped/errors).
+
+Standardize and display error messages (network/server).
+
+Edge Function Requirements
+Only process active (enabled=true) sources.
+
+Use different parsing strategies based on source type (RSS first). If parsing fails, log the error for that source and continue.
+
+Normalize data: trim titles, normalize URLs, limit summary length, parse dates.
+
+Deduplicate using hash constraints; treat duplicates as skipped, not errors.
+
+Return structured statistics in the response.
+
+Update last success timestamp and status for each processed source.
+
+Acceptance Criteria (AC)
+Clicking the button runs the collection and shows the stats on screen.
+
+New records are stored in the DB, and duplicates are not inserted.
+
+Failure in one source does not affect others.
+
+Source records update their last success timestamp and status correctly.
+
+Test Scenarios
+Add a single RSS-based source to sources and enable it.
+
+Click the button → check that stats (inserted/skipped) are shown.
+
+Click again → confirm duplicates are skipped.
+
+Add an invalid source → ensure the process still completes for valid sources.
+
+Security & Operations
+In development, frontend may call the function directly; in production, calls must go through a server proxy.
+
+Never log sensitive keys.
+
+Optionally record inserted/skipped/error ratios for monitoring or dashboard.
+
+Commit Guidelines (Summary)
+Format: type(scope): summary. Example: feat(edge): add manual crawl function.
+
+Commit in small, frequent chunks, separating feature, UI, and DB schema changes.
+
+AI Implementation Instruction (Code-free)
+“When the manual collection button is clicked, call an Edge Function to loop over active sources, normalize them into a standard Article, and save without duplicates using hash-based constraints. Ensure failures in individual sources do not stop the run. Return stats (inserted, seen, skipped, errors) to the frontend. On the frontend, disable the button while running and display results clearly. Never expose sensitive keys in the frontend; in production, use a server proxy.”Purpose
+When the temporary “Collect” button on the main page is clicked, a manual collection process runs to fetch the latest posts from external sources (news/blog/video) and store them in the Supabase DB (articles table) without duplicates.
+Cron scheduling will be added later; for now, execution happens only via the button.
+
+Scope (This Phase)
+Frontend: One “Run Collection” button on the main page with a result notification (showing inserted/skipped/error counts).
+
+Backend: One Supabase Edge Function (referred to here as crawl_manual). When called, it loops over active sources, fetches and normalizes data, then stores it.
+
+Database: Using articles and sources tables (create with equivalent fields if missing).
+
+Flow Sequence (Summary)
+User clicks the button.
+
+Frontend sends a request to the backend function to start manual collection (in dev mode: temporary token; in production: via server proxy).
+
+The function fetches enabled=true sources from the DB.
+
+For each source, data is fetched and normalized into a standard Article format.
+
+Duplicates are detected using a hash (e.g., canonical_url + title) and skipped.
+
+The function returns statistics: inserted, total seen, skipped, and error list.
+
+The frontend displays a summary result to the user.
+
+Collection Rules
+Triggered only by button clicks (manual run). No live crawling.
+
+Prefer RSS/official APIs. HTML parsing will be added later.
+
+Fail-soft: failure of one source must not stop the entire run.
+
+Deduplication via hash-based unique constraint.
+
+Sort by original published_at when available, otherwise use fetched_at.
+
+Environment & Key Management
+Edge Function: Requires Supabase project URL and service role key.
+
+Frontend: Use temporary credentials only during development; in production, always call via backend proxy to avoid exposing sensitive keys.
+
+Interface Spec (Human-readable)
+Request: Command to start manual collection. Optionally includes an array of source IDs and a max items-per-source limit.
+
+Response: Number inserted, total processed, skipped due to duplicates, and per-source error messages.
+
+Data Model (Description Only)
+sources: Collection source info. Includes name, type (rss/html/api), URL, enabled flag, last success timestamp, and status message.
+
+articles: Collected articles/posts. Includes source ID, title, summary, original URL, canonical URL, thumbnail URL, author, original published date, fetched date, status (approved/pending/etc.), raw metadata, and hash for deduplication.
+
+Public queries should return only approved records via views or RLS policies.
+
+Frontend Requirements
+Button should disable while running to prevent repeated clicks.
+
+Show clear result counts (inserted/skipped/errors).
+
+Standardize and display error messages (network/server).
+
+Edge Function Requirements
+Only process active (enabled=true) sources.
+
+Use different parsing strategies based on source type (RSS first). If parsing fails, log the error for that source and continue.
+
+Normalize data: trim titles, normalize URLs, limit summary length, parse dates.
+
+Deduplicate using hash constraints; treat duplicates as skipped, not errors.
+
+Return structured statistics in the response.
+
+Update last success timestamp and status for each processed source.
+
+Acceptance Criteria (AC)
+Clicking the button runs the collection and shows the stats on screen.
+
+New records are stored in the DB, and duplicates are not inserted.
+
+Failure in one source does not affect others.
+
+Source records update their last success timestamp and status correctly.
+
+Test Scenarios
+Add a single RSS-based source to sources and enable it.
+
+Click the button → check that stats (inserted/skipped) are shown.
+
+Click again → confirm duplicates are skipped.
+
+Add an invalid source → ensure the process still completes for valid sources.
+
+Security & Operations
+In development, frontend may call the function directly; in production, calls must go through a server proxy.
+
+Never log sensitive keys.
+
+Optionally record inserted/skipped/error ratios for monitoring or dashboard.
+
+Commit Guidelines (Summary)
+Format: type(scope): summary. Example: feat(edge): add manual crawl function.
+
+Commit in small, frequent chunks, separating feature, UI, and DB schema changes.
+
+AI Implementation Instruction (Code-free)
+“When the manual collection button is clicked, call an Edge Function to loop over active sources, normalize them into a standard Article, and save without duplicates using hash-based constraints. Ensure failures in individual sources do not stop the run. Return stats (inserted, seen, skipped, errors) to the frontend. On the frontend, disable the button while running and display results clearly. Never expose sensitive keys in the frontend; in production, use a server proxy.”

@@ -1,0 +1,612 @@
+# 🔄 Data Collection Workflow (English Translation)
+
+## 📋 Overview
+
+Based on [doc/devguide.mdc](mdc:doc/devguide.mdc), this project implements a **Content Collection System** that fetches articles from external RSS sources and stores them in Supabase with deduplication. The system is currently configured for collecting content related to specific topics (e.g., entertainment, news) from various RSS feeds.
+
+### 🎯 Current Implementation Status
+- ✅ **Manual Collection Interface**: [app/page.tsx](mdc:app/page.tsx) with "Run Collection" button
+- ✅ **API Proxy Layer**: [app/api/crawl/manual/route.ts](mdc:app/api/crawl/manual/route.ts) for secure server-side calls
+- ✅ **Edge Function**: [supabase/functions/crawl_manual/index.ts](mdc:supabase/functions/crawl_manual/index.ts) for RSS processing
+- ✅ **Database Schema**: Complete setup via [database-setup.sql](mdc:database-setup.sql)
+- ✅ **MCP Integration**: Direct Supabase management via MCP tools
+- ⚠️ **RSS Collection Issues**: Korean news site RSS access restrictions and instability issues
+- ✅ **Database Insert**: Data storage functionality working normally
+- ✅ **Real-time Statistics**: Live collection metrics display
+
+## 🚨 **Web Scraping Issues and Solutions**
+
+### 📋 **Current Problems:**
+1. **Korean News Site RSS Blocking**: Most Korean media outlets have discontinued RSS or block bot access
+2. **DNS/Network Errors**: Some sites inaccessible from Supabase Edge Function environment
+3. **Lack of "I Am Solo" Specialized Content**: General RSS has limitations in collecting "I Am Solo" cast-related content
+4. **RSS Dependency**: RSS alone cannot cover diverse sources like social media, fan communities
+
+### 💡 **Phased Solutions**
+
+#### **Phase 1: Immediately Applicable Solutions**
+1. **Use Only Verified RSS**
+   - Prioritize internationally stable RSS feeds (Hacker News, Dev.to, GitHub Blog)
+   - Use only accessible Korean sites selectively
+   - Regular RSS URL validity verification system
+
+2. **User-Agent and Header Optimization**
+   ```typescript
+   const response = await fetch(source.url, {
+     headers: {
+       "User-Agent": "Mozilla/5.0 (compatible; ContentBot/1.0)",
+       "Accept": "application/rss+xml, application/xml, text/xml, */*",
+       "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+       "Cache-Control": "no-cache"
+     },
+     timeout: 10000 // 10 second timeout
+   });
+   ```
+
+3. **Enhanced Error Handling**
+   - Automatically disable sources with DNS errors, 404 errors
+   - Automatically disable sources after 3 consecutive failures
+   - Administrator notification system
+
+#### **Phase 2: "I Am Solo" Specialized Data Collection**
+1. **Multi-Source Strategy**
+   - **Naver Search API**: Search news with "I Am Solo cast member names" keywords
+   - **YouTube Data API**: Collect "I Am Solo" related video metadata
+   - **Instagram Public Hashtags**: Crawl `#IAmSolo`, `#CastMemberName`
+   - **DC Inside/Communities**: Latest posts from "I Am Solo" galleries
+
+2. **Cast Member Database Construction**
+   ```sql
+   CREATE TABLE public.cast_members (
+     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+     name TEXT NOT NULL,
+     season INTEGER,
+     episode_range TEXT, -- "Episodes 1-4", "Episodes 5-8", etc.
+     instagram_handle TEXT,
+     youtube_channel TEXT,
+     keywords TEXT[], -- Keyword array for search
+     status TEXT DEFAULT 'active', -- active, inactive, graduated
+     created_at TIMESTAMPTZ DEFAULT now()
+   );
+   ```
+
+3. **Keyword-Based Filtering**
+   - Classify all collected content by cast member keywords
+   - Relevance scoring system (whether cast member names are included in title/content)
+   - Automatic filtering of irrelevant content
+
+#### **Phase 3: Advanced Solutions**
+1. **AI-Based Content Analysis**
+   - Use OpenAI API to determine content relevance
+   - Sentiment analysis by cast member (positive/negative/neutral)
+   - Automatic tag generation
+
+2. **Real-time Monitoring**
+   - Webhook-based real-time notifications
+   - Trend analysis of mentions by cast member
+   - Automatic hot topic detection
+
+3. **Community Features**
+   - User reporting system
+   - Fan pages by cast member
+   - Comment and reaction system
+
+### 🎯 **"I Am Solo" Project Specialized Requirements**
+
+#### 🚨 **Core Principles (Absolute Compliance)**
+- **🎯 I AM SOLO ONLY**: Never collect/display anything that is not related to "I Am Solo" program, cast members, or related news
+- **❌ General News Prohibited**: Completely exclude general news like politics, economy, society, sports, technology
+- **❌ Unrelated Entertainment News Prohibited**: Exclude other celebrity/program news unrelated to "I Am Solo"
+- **✅ I Am Solo Exclusive**: Only collect cast member updates, couple news, program-related news
+- **🚫 Dummy Data Prohibited**: Never use fake/dummy/test data, only use actually collected data
+- **📡 Force Real Collection**: Must store only data collected in real-time from external sources (Naver, Daum, RSS, etc.) in DB
+
+#### 📋 **Technical Requirements**
+- **Manual Trigger**: Collection runs only when user clicks the "Run Collection" button
+- **Fail-Soft**: Failure in one source must not stop the entire process  
+- **Cast-Focused**: "I Am Solo" cast member-centered content collection and classification
+- **Korean Content Only**: 100% Korean content collection and display only
+- **Real-time Display**: Automatically refresh latest article list after collection
+- **Published Date Sorting**: Sort by latest based on actual publication date
+- **Strict Content Filtering**: Must include "I Am Solo" keyword in title/content
+- **Multi-Source**: Support various sources including RSS, API, social media
+- **Deduplication**: Hash-based unique constraints prevent duplicate articles
+- **Thumbnail Display**: Display article thumbnail images (planned implementation)
+- **Security**: No sensitive keys exposed to frontend in production
+
+#### 🔧 **Real Data Collection Implementation Methods**
+- **Web Scraping**: Direct collection from Naver/Daum news with Playwright, Puppeteer
+- **API Integration**: Utilize Naver Search API, YouTube Data API
+- **RSS Parsing**: "I Am Solo" keyword search results from Google News RSS (currently problematic)
+- **HTML Parsing**: Direct parsing of news sites with fetch + regex
+- **Naver Search Scraping**: Direct parsing of Naver search results with fetch + regex (current method)
+- **Real-time Verification**: Only allow data actually fetched from external URLs
+- **Dummy Data Detection**: Prohibit use of function names like generateDummy, fakeData, testData
+
+### 🗄️ **Current Active Data Sources**
+```sql
+-- "I Am Solo" exclusive Korean web scraping sources
+SELECT name, type, url FROM public.sources WHERE enabled = true;
+/*
+Currently Active Sources:
+- Naver Search - I Am Solo (scrape): https://search.naver.com/search.naver?where=news&query=나는솔로&sort=1
+  → Direct parsing of search results with fetch + regex (current method)
+
+Inactive/Problematic Sources:
+- Google News - I Am Solo (rss): https://news.google.com/rss/search?q=나는솔로&hl=ko&gl=KR&ceid=KR:ko
+- Naver Entertainment News (rss): https://rss.news.naver.com/services/news/rss.nhn?sectionId=106  
+- SBS Entertainment News (rss): https://news.sbs.co.kr/news/SectionRssFeed.do?sectionId=08
+- MBC Entertainment News (rss): https://imnews.imbc.com/rss/news/ent/rss.xml
+*/
+```
+
+### 📱 **UI/UX Features**
+- **Real-time Statistics**: Display collected/processed/skipped article counts
+- **Error Display**: Provide detailed error information by source
+- **Auto Refresh**: Automatically refresh article list 1 second after collection completion
+- **Responsive Design**: Mobile/desktop optimization
+- **Korean Dates**: Display dates in Korean timezone and format
+- **Clickable Titles**: Navigate to original articles in new tabs
+
+## 🗄️ Database Schema
+
+### Tables Structure
+```sql
+-- Sources table: External content sources configuration
+CREATE TABLE public.sources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,                    -- Human-readable source name
+  type TEXT NOT NULL CHECK (type IN ('rss','html','api','scrape')),
+  url TEXT NOT NULL,                     -- Source URL to fetch from
+  enabled BOOLEAN NOT NULL DEFAULT true, -- Active/inactive flag
+  last_success_at TIMESTAMPTZ,          -- Last successful collection
+  status_msg TEXT,                       -- Latest status/error message
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Articles table: Collected and normalized content
+CREATE TABLE public.articles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_id UUID NOT NULL REFERENCES public.sources(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,                   -- Article title (max 500 chars)
+  summary TEXT,                          -- Article summary (max 2000 chars)
+  original_url TEXT NOT NULL,            -- Original article URL
+  canonical_url TEXT,                    -- Canonical URL (often from GUID)
+  thumbnail_url TEXT,                    -- Featured image URL
+  author TEXT,                           -- Article author
+  published_at TIMESTAMPTZ,              -- Original publication date
+  fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
+  raw_meta JSONB,                        -- Original metadata from source
+  hash TEXT NOT NULL,                    -- Deduplication hash
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Unique constraint for deduplication
+CREATE UNIQUE INDEX ux_articles_hash ON public.articles(hash);
+
+-- Performance indexes
+CREATE INDEX idx_sources_enabled ON public.sources(enabled);
+CREATE INDEX idx_articles_status ON public.articles(status);
+CREATE INDEX idx_articles_published ON public.articles(published_at DESC);
+```
+
+## ⚡ Edge Function Implementation
+
+### Function Structure: `crawl_manual`
+```typescript
+// supabase/functions/crawl_manual/index.ts
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+interface CollectionRequest {
+  sourceIds?: string[];      // Optional: specific sources to process
+  maxPerSource?: number;     // Optional: limit items per source (default: 20)
+}
+
+interface CollectionResponse {
+  inserted: number;          // Successfully inserted articles
+  total: number;            // Total articles processed
+  skipped: number;          // Skipped due to duplicates
+  errors: Array<{           // Per-source error details
+    source_id: string;
+    message: string;
+  }>;
+}
+```
+
+### Collection Strategy by Source Type
+
+#### Web Scraping (Current Method)
+```typescript
+async function scrapeNaverNews(source: Source, maxItems: number): Promise<Article[]> {
+  console.log(`Starting REAL Naver News scraping: ${source.name}`);
+  
+  try {
+    // Naver News search URL (search for "I Am Solo")
+    const searchUrl = 'https://search.naver.com/search.naver?where=news&query=나는솔로&sort=1&start=1';
+    
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Cache-Control': 'no-cache'
+      },
+      signal: AbortSignal.timeout(20000) // 20 second timeout
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const html = await response.text();
+    
+    // Extract Naver news results (using regex)
+    const articles: Article[] = [];
+    
+    // News item pattern (Naver search result structure)
+    const newsItemPattern = /<div[^>]*class="[^"]*news_area[^"]*"[^>]*>([\s\S]*?)<\/div>/g;
+    const newsItems = Array.from(html.matchAll(newsItemPattern));
+    
+    // Process each news item
+    for (const item of newsItems.slice(0, maxItems)) {
+      // Extract title, URL, content using regex patterns
+      // Verify "I Am Solo" relevance
+      // Generate hash for deduplication
+      // Create normalized Article object
+    }
+    
+    return articles;
+    
+  } catch (error) {
+    console.error('Naver scraping error:', error);
+    throw error;
+  }
+}
+```
+
+#### RSS Feeds (Deprecated due to issues)
+```typescript
+async function collectFromRSS(source: Source, maxItems: number): Promise<Article[]> {
+  // RSS collection logic (currently problematic with Korean sites)
+  // Kept for reference and potential future use with stable international feeds
+}
+```
+
+### Error Handling and Resilience
+```typescript
+// Process each source independently
+for (const source of sources) {
+  try {
+    console.log(`Processing REAL scraping source: ${source.name}`);
+    
+    const articles = await collectFromSource(source, maxPerSource);
+    totalProcessed += articles.length;
+
+    if (articles.length === 0) {
+      console.log(`No I Am Solo articles found for source: ${source.name}`);
+      continue;
+    }
+
+    // Insert articles one by one to handle duplicates
+    let actualInserted = 0;
+    let actualSkipped = 0;
+    
+    for (const article of articles) {
+      try {
+        const { error } = await supabase
+          .from("articles")
+          .insert(article);
+        
+        if (error) {
+          if (error.code === '23505') { // Duplicate key violation
+            actualSkipped++;
+            console.log(`Skipped duplicate: ${article.title}`);
+          } else {
+            throw error;
+          }
+        } else {
+          actualInserted++;
+          console.log(`Inserted REAL scraped article: ${article.title}`);
+        }
+      } catch (insertError) {
+        console.error(`Failed to insert article: ${article.title}`, insertError);
+        actualSkipped++;
+      }
+    }
+    
+    totalInserted += actualInserted;
+    totalSkipped += articles.length - actualInserted;
+
+    // Update source success status
+    await supabase
+      .from("sources")
+      .update({
+        last_success_at: new Date().toISOString(),
+        status_msg: `Success: ${actualInserted} new REAL scraped I Am Solo articles, ${articles.length - actualInserted} duplicates`
+      })
+      .eq("id", source.id);
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`Error processing source ${source.name}:`, errorMsg);
+    
+    errors.push({
+      source_id: source.id,
+      message: errorMsg
+    });
+
+    // Update source error status
+    await supabase
+      .from("sources")
+      .update({ 
+        status_msg: `Scraping Error: ${errorMsg}` 
+      })
+      .eq("id", source.id);
+  }
+}
+```
+
+## 🌐 API Integration Layer
+
+### Next.js API Route: `/api/crawl/manual`
+```typescript
+// app/api/crawl/manual/route.ts
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  try {
+    // Parse request body
+    const body = await request.json().catch(() => ({}));
+    
+    // Validate environment
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    
+    // Call Edge Function with service role authentication
+    const response = await fetch(`${supabaseUrl}/functions/v1/crawl_manual`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "authorization": `Bearer ${serviceKey}` // Server-only key
+      },
+      body: JSON.stringify({
+        sourceIds: body.sourceIds,
+        maxPerSource: Math.min(Math.max(body.maxPerSource ?? 20, 1), 100)
+      })
+    });
+    
+    const result = await response.json();
+    return Response.json(result, { status: response.status });
+    
+  } catch (error) {
+    console.error("Collection API error:", error);
+    return Response.json(
+      { error: "Collection failed" }, 
+      { status: 500 }
+    );
+  }
+}
+```
+
+## 🖥️ Frontend Implementation
+
+### Collection Button Component
+```typescript
+// In app/page.tsx
+export function CollectionInterface() {
+  const [isRunning, setIsRunning] = useState(false);
+  const [result, setResult] = useState<CollectionResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
+  
+  const runCollection = async () => {
+    setIsRunning(true);
+    setError(null);
+    setResult(null);
+    
+    try {
+      const response = await fetch("/api/crawl/manual", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({})
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setResult(data);
+      
+      // Auto-refresh articles after successful collection
+      setTimeout(fetchArticles, 1000);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Collection failed");
+    } finally {
+      setIsRunning(false);
+    }
+  };
+  
+  const fetchArticles = async () => {
+    try {
+      const response = await fetch("/api/articles");
+      const data = await response.json();
+      if (data.success) {
+        setArticles(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch articles:", err);
+    }
+  };
+  
+  // Fetch articles on component mount
+  useEffect(() => {
+    fetchArticles();
+  }, []);
+  
+  return (
+    <div className="collection-interface">
+      {/* Collection Button */}
+      <button
+        onClick={runCollection}
+        disabled={isRunning}
+        className="px-6 py-3 bg-blue-600 text-white rounded-lg 
+                   disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isRunning ? "Running Collection..." : "Run Collection"}
+      </button>
+      
+      {/* Collection Results */}
+      {result && (
+        <div className="mt-4 p-4 border rounded-lg">
+          <h3 className="font-bold">Collection Results</h3>
+          <p>✅ Inserted: {result.inserted}</p>
+          <p>📊 Total Processed: {result.total}</p>
+          <p>⏭️ Skipped (duplicates): {result.skipped}</p>
+          
+          {result.errors.length > 0 && (
+            <div className="mt-2">
+              <p className="text-red-600">❌ Errors:</p>
+              <ul className="list-disc ml-4">
+                {result.errors.map((err, i) => (
+                  <li key={i}>{err.source_id}: {err.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Articles Display */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold mb-4">Collected "I Am Solo" Articles</h2>
+        
+        {articles.length === 0 ? (
+          <p className="text-gray-500">No articles collected yet. Click "Run Collection" to start.</p>
+        ) : (
+          <div className="space-y-4">
+            {articles.map((article) => (
+              <div key={article.id} className="border rounded-lg p-4">
+                <h3 className="font-semibold">
+                  <a 
+                    href={article.original_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {article.title}
+                  </a>
+                </h3>
+                
+                {article.summary && (
+                  <p className="text-gray-600 mt-2 line-clamp-2">
+                    {article.summary}
+                  </p>
+                )}
+                
+                <div className="text-sm text-gray-500 mt-2">
+                  <span>Source: {article.sources?.name}</span>
+                  {article.author && <span> • Author: {article.author}</span>}
+                  {article.published_at && (
+                    <span> • Published: {new Date(article.published_at).toLocaleDateString('ko-KR')}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+## 🧪 Testing Scenarios
+
+### Manual Testing Workflow
+1. **Single Source Collection Test**
+   - Verify Naver search scraping works
+   - Check "I Am Solo" content filtering
+   - Confirm data insertion to database
+
+2. **Duplicate Handling Test**
+   - Run collection twice
+   - Verify second run shows skipped > 0
+   - Confirm no duplicate articles in database
+
+3. **Error Handling Test**
+   - Test with invalid/blocked URLs
+   - Verify other sources continue processing
+   - Check error reporting in UI
+
+4. **Content Relevance Test**
+   - Verify all collected articles contain "I Am Solo" keywords
+   - Check no general news or unrelated content
+   - Confirm Korean-only content
+
+## 🔒 Security Guidelines
+
+### Environment Variables
+```bash
+# .env.local (development)
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...  # Public key for client
+SUPABASE_SERVICE_ROLE_KEY=eyJ...      # Secret key for server only
+```
+
+### Access Control
+- **Frontend**: Uses anon key with RLS policies
+- **API Routes**: Uses service role key for admin operations
+- **Edge Functions**: Receives service role key via Authorization header
+- **Database**: RLS policies restrict public access to approved articles only
+
+## 🚀 Future Enhancements
+
+### Planned Features
+1. **API Integration**: Naver Search API, YouTube Data API
+2. **Social Media Scraping**: Instagram, Twitter hashtag monitoring
+3. **Cast Member Database**: Individual cast member tracking
+4. **Sentiment Analysis**: AI-powered content analysis
+5. **Real-time Notifications**: Webhook-based updates
+6. **Community Features**: User comments and reactions
+
+### Extensibility Points
+```typescript
+// Add new source types
+interface SourceCollector {
+  type: string;
+  collect(source: Source, maxItems: number): Promise<Article[]>;
+}
+
+// Register collectors
+const collectors = new Map<string, SourceCollector>();
+collectors.set("scrape", new WebScrapingCollector()); // Current
+collectors.set("rss", new RSSCollector());            // Deprecated
+collectors.set("api", new APICollector());            // Future
+collectors.set("social", new SocialMediaCollector()); // Future
+```
+
+## 📝 Key Implementation Notes
+
+### Critical Success Factors
+1. **"I Am Solo" Content Only**: Strict filtering ensures only relevant content
+2. **Real Data Collection**: No dummy/fake data, only actual web scraping
+3. **Fail-Soft Architecture**: One source failure doesn't stop entire process
+4. **Korean Language Focus**: 100% Korean content and UI
+5. **Real-time Updates**: Immediate UI refresh after collection
+
+### Current Limitations
+1. **Single Source**: Currently only Naver search scraping active
+2. **Regex Parsing**: Simple pattern matching, may miss some content
+3. **Manual Trigger**: No automated/scheduled collection yet
+4. **Limited Sources**: RSS issues limit source diversity
+
+### Next Priority Actions
+1. **Verify Scraping Results**: Test current Naver scraping implementation
+2. **Add More Sources**: Implement additional scraping targets
+3. **Improve Parsing**: Use proper HTML parsers instead of regex
+4. **Add Thumbnails**: Implement image extraction and display
+5. **API Integration**: Add Naver Search API as backup/primary method

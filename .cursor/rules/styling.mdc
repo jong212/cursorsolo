@@ -1,0 +1,219 @@
+---
+globs: *.css,*.tsx,*.ts
+description: Styling and UI guidelines for consistent design system
+---
+
+# 🎨 Styling Guidelines
+
+## 🌈 Design System
+
+### Color Scheme
+- **Primary Colors**: Defined in [app/globals.css](mdc:app/globals.css)
+  - Light mode: `--background: #ffffff`, `--foreground: #171717`
+  - Dark mode: `--background: #0a0a0a`, `--foreground: #ededed`
+- **Usage**: Always use CSS variables for consistent theming
+  - `background: var(--background)`
+  - `color: var(--foreground)`
+
+### Typography
+- **Primary Font**: Geist Sans (`--font-geist-sans`)
+- **Monospace Font**: Geist Mono (`--font-geist-mono`)
+- **Implementation**: Loaded via [app/layout.tsx](mdc:app/layout.tsx)
+- **CSS Variables**: Available as `var(--font-sans)` and `var(--font-mono)`
+
+## 🎯 Tailwind CSS v4 Guidelines
+
+### Core Principles
+- **Configuration**: Uses `@tailwindcss/postcss` plugin in [postcss.config.mjs](mdc:postcss.config.mjs)
+- **Import**: Single import in [app/globals.css](mdc:app/globals.css) with `@import "tailwindcss"`
+- **Theme Integration**: Use `@theme inline` for custom CSS variable mapping
+
+### Utility Class Patterns
+```css
+/* Responsive Design */
+.responsive-container {
+  @apply min-h-screen p-8 pb-20 gap-16 sm:p-20;
+}
+
+/* Interactive Elements */
+.button-primary {
+  @apply rounded-full border border-solid border-transparent 
+         transition-colors flex items-center justify-center 
+         bg-foreground text-background hover:bg-[#383838] 
+         dark:hover:bg-[#ccc] font-medium;
+}
+
+/* Layout Utilities */
+.grid-layout {
+  @apply grid grid-rows-[20px_1fr_20px] items-center 
+         justify-items-center;
+}
+```
+
+### Custom Properties Integration
+```css
+/* In globals.css - Theme token mapping */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+```
+
+## 📱 Component Styling Patterns
+
+### Button Components
+```tsx
+// Primary Action Button
+<button className="rounded-full border border-solid border-transparent 
+                   transition-colors flex items-center justify-center 
+                   bg-foreground text-background gap-2 
+                   hover:bg-[#383838] dark:hover:bg-[#ccc] 
+                   font-medium text-sm sm:text-base h-10 sm:h-12 
+                   px-4 sm:px-5 disabled:opacity-50">
+  {loading ? "Processing..." : "Action"}
+</button>
+
+// Secondary Button
+<button className="rounded-full border border-solid 
+                   border-black/[.08] dark:border-white/[.145] 
+                   transition-colors flex items-center justify-center 
+                   hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] 
+                   hover:border-transparent font-medium">
+  Secondary Action
+</button>
+```
+
+### Layout Components
+```tsx
+// Main Container
+<div className="font-sans grid grid-rows-[20px_1fr_20px] 
+                items-center justify-items-center min-h-screen 
+                p-8 pb-20 gap-16 sm:p-20">
+  {/* Content */}
+</div>
+
+// Content Section
+<main className="flex flex-col gap-[32px] row-start-2 
+                 items-center sm:items-start">
+  {/* Main content */}
+</main>
+
+// Footer Section
+<footer className="row-start-3 flex gap-[24px] flex-wrap 
+                   items-center justify-center">
+  {/* Footer links */}
+</footer>
+```
+
+### Text and Code Styling
+```tsx
+// Code Snippets
+<code className="bg-black/[.05] dark:bg-white/[.06] 
+                 font-mono font-semibold px-1 py-0.5 rounded">
+  app/page.tsx
+</code>
+
+// Lists
+<ol className="font-mono list-inside list-decimal text-sm/6 
+               text-center sm:text-left">
+  <li className="mb-2 tracking-[-.01em]">List item</li>
+</ol>
+```
+
+## 🖼️ Image and Asset Guidelines
+
+### Next.js Image Component
+```tsx
+import Image from "next/image";
+
+// Logo/Brand Images
+<Image
+  className="dark:invert"
+  src="/next.svg"
+  alt="Next.js logo"
+  width={180}
+  height={38}
+  priority
+/>
+
+// Icon Images
+<Image
+  aria-hidden
+  src="/file.svg"
+  alt="File icon"
+  width={16}
+  height={16}
+/>
+```
+
+### Asset Organization
+- **Icons**: Place in `public/` directory with descriptive names
+- **Optimization**: Use SVG for icons and logos
+- **Dark Mode**: Use `dark:invert` class for icons that need inversion
+
+## 🌙 Dark Mode Implementation
+
+### CSS Variable Approach
+```css
+/* Light mode (default) */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* Dark mode (system preference) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+```
+
+### Tailwind Dark Mode Classes
+- **Background**: `bg-background` (uses CSS variable)
+- **Text**: `text-foreground` (uses CSS variable)
+- **Conditional**: `dark:bg-[#1a1a1a]` for specific dark mode styles
+- **Images**: `dark:invert` for icons that need color inversion
+
+## 📐 Responsive Design Patterns
+
+### Breakpoint Strategy
+- **Mobile First**: Start with mobile styles, then add larger breakpoints
+- **Breakpoints**: Use Tailwind's default breakpoints (`sm:`, `md:`, `lg:`, `xl:`)
+- **Flexible Sizing**: Use responsive padding, margins, and text sizes
+
+### Common Responsive Patterns
+```tsx
+// Responsive Padding
+<div className="p-8 pb-20 gap-16 sm:p-20">
+
+// Responsive Text Alignment
+<ol className="text-center sm:text-left">
+
+// Responsive Flex Direction
+<div className="flex-col sm:flex-row">
+
+// Responsive Sizing
+<button className="text-sm sm:text-base h-10 sm:h-12 
+                   px-4 sm:px-5 w-full sm:w-auto">
+```
+
+## ✨ Animation and Transitions
+
+### Transition Classes
+- **Standard**: `transition-colors` for color changes
+- **Hover Effects**: Combine with hover states for smooth interactions
+- **Duration**: Use default Tailwind transition durations
+
+### Interactive States
+```tsx
+// Hover States
+<a className="hover:underline hover:underline-offset-4">
+<button className="hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a]">
+
+// Focus States (add when needed)
+<button className="focus:outline-none focus:ring-2 focus:ring-blue-500">
+```

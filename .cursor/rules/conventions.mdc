@@ -1,0 +1,425 @@
+
+# 📝 Coding Conventions
+
+## 🔤 Naming Conventions
+
+### File and Directory Names
+- **Components**: PascalCase for React components (`Button.tsx`, `UserProfile.tsx`)
+- **Pages**: lowercase with hyphens (`page.tsx`, `not-found.tsx`)
+- **API Routes**: lowercase with hyphens (`route.ts` in nested folders)
+- **Utilities**: camelCase (`supabase-browser.ts`, `data-helpers.ts`)
+- **Constants**: UPPER_SNAKE_CASE (`API_ENDPOINTS.ts`)
+
+### Variable and Function Names
+```typescript
+// ✅ Good
+const userName = "john_doe";
+const fetchUserData = async () => {};
+const API_BASE_URL = "https://api.example.com";
+const isLoadingState = true;
+
+// ❌ Avoid
+const user_name = "john_doe";        // snake_case for variables
+const FetchUserData = async () => {}; // PascalCase for functions
+const apiBaseUrl = "https://...";    // camelCase for constants
+const loading = true;                // unclear boolean naming
+```
+
+### React Component Conventions
+```typescript
+// ✅ Component naming and structure
+export default function UserDashboard() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [userData, setUserData] = useState(null);
+  
+  return (
+    <div className="dashboard-container">
+      {/* Component content */}
+    </div>
+  );
+}
+
+// ✅ Custom hooks
+const useUserData = (userId: string) => {
+  // Hook logic
+};
+
+// ✅ Event handlers
+const handleSubmit = (event: FormEvent) => {
+  // Handler logic
+};
+
+const handleUserClick = (userId: string) => {
+  // Handler logic
+};
+```
+
+## 📁 File Organization
+
+### Import Order
+```typescript
+// 1. React and Next.js imports
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import { Metadata } from "next";
+
+// 2. Third-party libraries
+import { createClient } from "@supabase/supabase-js";
+
+// 3. Internal utilities and configs
+import { supabase } from "@/lib/supabase-browser";
+import { formatDate } from "@/lib/utils";
+
+// 4. Type imports (separate section)
+import type { User, Article } from "@/types";
+
+// 5. Relative imports
+import "./component.css";
+```
+
+### Export Conventions
+```typescript
+// ✅ Default exports for main components
+export default function HomePage() {}
+
+// ✅ Named exports for utilities
+export const formatDate = (date: Date) => {};
+export const validateEmail = (email: string) => {};
+
+// ✅ Type exports
+export type { User, Article, DatabaseRow };
+```
+
+## 🔧 TypeScript Conventions
+
+### Type Definitions
+```typescript
+// ✅ Interface for object shapes
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+}
+
+// ✅ Type for unions and primitives
+type Status = "pending" | "approved" | "rejected";
+type UserId = string;
+
+// ✅ Generic types
+interface ApiResponse<T> {
+  data: T;
+  error?: string;
+  success: boolean;
+}
+```
+
+### Function Signatures
+```typescript
+// ✅ Explicit return types for public functions
+export async function fetchUserData(userId: string): Promise<User | null> {
+  // Function implementation
+}
+
+// ✅ Proper error handling
+export async function saveArticle(article: Article): Promise<{
+  success: boolean;
+  error?: string;
+  data?: Article;
+}> {
+  try {
+    // Implementation
+    return { success: true, data: savedArticle };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+```
+
+### Environment Variables
+```typescript
+// ✅ Type-safe environment variable access
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+// ✅ Validation in utilities
+export function getEnvVar(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${key}`);
+  }
+  return value;
+}
+```
+
+## 🎯 React Best Practices
+
+### Component Structure
+```typescript
+// ✅ Component organization
+interface Props {
+  userId: string;
+  onUserUpdate?: (user: User) => void;
+}
+
+export default function UserProfile({ userId, onUserUpdate }: Props) {
+  // 1. State declarations
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // 2. Effects
+  useEffect(() => {
+    fetchUser();
+  }, [userId]);
+  
+  // 3. Event handlers
+  const handleUpdate = async (userData: Partial<User>) => {
+    // Handler implementation
+  };
+  
+  // 4. Helper functions
+  const fetchUser = async () => {
+    // Fetch implementation
+  };
+  
+  // 5. Early returns
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!user) return <div>User not found</div>;
+  
+  // 6. Main render
+  return (
+    <div className="user-profile">
+      {/* Component JSX */}
+    </div>
+  );
+}
+```
+
+### State Management
+```typescript
+// ✅ Boolean states with clear naming
+const [isLoading, setIsLoading] = useState(false);
+const [hasError, setHasError] = useState(false);
+const [isFormValid, setIsFormValid] = useState(false);
+
+// ✅ Object states with proper typing
+const [formData, setFormData] = useState<{
+  title: string;
+  content: string;
+  status: Status;
+}>({
+  title: "",
+  content: "",
+  status: "pending"
+});
+
+// ✅ Array states
+const [articles, setArticles] = useState<Article[]>([]);
+```
+
+## 🌐 API and Data Handling
+
+### API Route Structure
+```typescript
+// app/api/example/route.ts
+export const runtime = "nodejs"; // or "edge"
+
+export async function GET(request: Request) {
+  try {
+    // Implementation
+    return Response.json({ success: true, data });
+  } catch (error) {
+    console.error("API Error:", error);
+    return Response.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    // Validation
+    // Implementation
+    return Response.json({ success: true, data });
+  } catch (error) {
+    return Response.json(
+      { success: false, error: error.message },
+      { status: 400 }
+    );
+  }
+}
+```
+
+### Database Queries
+```typescript
+// ✅ Supabase query patterns
+export async function fetchArticles(limit = 10): Promise<Article[]> {
+  const { data, error } = await supabase
+    .from("articles")
+    .select("*")
+    .eq("status", "approved")
+    .order("published_at", { ascending: false })
+    .limit(limit);
+    
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+// ✅ Error handling
+export async function insertArticle(article: Omit<Article, "id">): Promise<Article> {
+  const { data, error } = await supabase
+    .from("articles")
+    .insert(article)
+    .select()
+    .single();
+    
+  if (error) {
+    console.error("Database insert error:", error);
+    throw new Error("Failed to insert article");
+  }
+  
+  return data;
+}
+```
+
+## 📋 Code Quality Standards
+
+### Comments and Documentation
+```typescript
+/**
+ * Fetches and normalizes articles from external RSS feeds
+ * @param sourceId - The ID of the source to fetch from
+ * @param maxItems - Maximum number of items to fetch (default: 20)
+ * @returns Promise resolving to normalized articles
+ */
+export async function fetchFromRSS(
+  sourceId: string, 
+  maxItems = 20
+): Promise<Article[]> {
+  // Implementation with inline comments for complex logic
+}
+
+// ✅ Inline comments for business logic
+const hash = await sha256Hex(`${canonical}::${title}`); // Deduplication key
+```
+
+### Error Handling Patterns
+```typescript
+// ✅ Consistent error handling
+export async function performAction(): Promise<{
+  success: boolean;
+  data?: any;
+  error?: string;
+}> {
+  try {
+    const result = await someAsyncOperation();
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Action failed:", error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error"
+    };
+  }
+}
+```
+
+### Testing Considerations
+```typescript
+// ✅ Testable function structure
+export function validateArticle(article: Partial<Article>): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+  
+  if (!article.title?.trim()) {
+    errors.push("Title is required");
+  }
+  
+  if (!article.original_url) {
+    errors.push("Original URL is required");
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+```
+
+## 🚀 Performance Guidelines
+
+### Optimization Patterns
+```typescript
+// ✅ Memoization for expensive calculations
+const expensiveValue = useMemo(() => {
+  return heavyCalculation(data);
+}, [data]);
+
+// ✅ Callback memoization
+const handleClick = useCallback((id: string) => {
+  onItemClick(id);
+}, [onItemClick]);
+
+// ✅ Lazy loading for large components
+const HeavyComponent = lazy(() => import("./HeavyComponent"));
+```
+
+### Bundle Size Considerations
+```typescript
+// ✅ Tree-shakable imports
+import { createClient } from "@supabase/supabase-js";
+
+// ❌ Avoid default imports for large libraries
+import * as supabase from "@supabase/supabase-js";
+```
+
+## 📊 **나는솔로 뉴스 수집 설정**
+
+현재 시스템은 **한 번에 최대 10개**의 기사를 수집하도록 설정되어 있습니다:
+
+### 🔢 **수집 개수 설정**
+
+1. **프론트엔드 설정** (`app/page.tsx`):
+   ```typescript
+   body: JSON.stringify({ maxPerSource: 10 })
+   ```
+   → 사용자가 "뉴스 수집 시작" 버튼을 누르면 **최대 10개** 요청
+
+2. **Edge Function 기본값** (`supabase/functions/crawl_manual/index.ts`):
+   ```typescript
+   const { sourceIds, maxPerSource = 20 } = body;
+   ```
+   → 요청이 없으면 기본값 **20개**, 하지만 프론트엔드에서 10개로 제한
+
+3. **네이버 검색 페이지**:
+   ```typescript
+   const searchUrls = [
+     'start=1',   // 1-10번째 기사
+     'start=11',  // 11-20번째 기사  
+     'start=21'   // 21-30번째 기사
+   ];
+   ```
+   → 네이버에서 **최대 30개 기사** 범위에서 검색하지만, `maxItems`로 제한
+
+### 🎯 **실제 수집 프로세스**
+
+1. **1페이지**: 네이버 뉴스 1-10번째 기사 검색
+2. **필터링**: "나는솔로" 관련 기사만 선별
+3. **제한**: 최대 10개까지만 수집
+4. **중복 제거**: 이미 DB에 있는 기사는 제외
+5. **최종 결과**: 보통 **2-5개** 정도의 새로운 기사 수집
+
+### 💡 **수집 개수를 늘리고 싶다면?**
+
+```typescript
+// app/page.tsx에서 수정
+body: JSON.stringify({ maxPerSource: 20 }) // 10 → 20으로 변경
+```
+
+현재 설정이 **10개**인 이유는 테스트 단계에서 적당한 양으로 설정해둔 것 같습니다. 더 많은 기사를 원하시면 언제든 늘릴 수 있어요! 📈

@@ -1,0 +1,182 @@
+---
+alwaysApply: true
+description: Architecture guidelines for the Next.js + Supabase content collection project
+---
+
+# 🏗️ Architecture Guidelines
+
+## 📁 Project Structure
+
+### Core Architecture
+- **Framework**: Next.js 15 with App Router (`app/` directory)
+- **Runtime**: React 19 + TypeScript 5
+- **Database**: Supabase (PostgreSQL with Edge Functions)
+- **Styling**: Tailwind CSS v4 with PostCSS
+- **Content**: 나는솔로 전용 뉴스 수집 시스템
+
+### Directory Organization (리팩토링 완료)
+```
+my-project/
+├── app/                    # Next.js App Router
+│   ├── api/               # API 라우트 (간소화됨)
+│   │   ├── articles/      # 기사 조회 API
+│   │   │   └── route.ts   # GET 나는솔로 기사 목록
+│   │   └── crawl/manual/  # 수집 실행 API
+│   │       └── route.ts   # 네이버 뉴스 수집 프록시
+│   ├── globals.css        # 글로벌 스타일 + 유틸리티 클래스
+│   ├── layout.tsx         # 루트 레이아웃
+│   └── page.tsx           # 나는솔로 뉴스 메인 페이지 (리팩토링됨)
+├── supabase/functions/    # Edge Functions
+│   └── crawl_manual/      # 나는솔로 뉴스 수집 함수 (완전 리팩토링)
+│       └── index.ts       # 네이버 뉴스 스크래핑 로직
+├── .cursor/rules/         # 개발 가이드라인
+│   ├── architecture.mdc   # 아키텍처 가이드 (이 파일)
+│   ├── conventions.mdc    # 코딩 컨벤션
+│   ├── styling.mdc        # UI/UX 가이드
+│   ├── data-collection.mdc # 데이터 수집 워크플로우
+│   └── data-collection-en.mdc # 영문 번역본
+├── database-setup.sql     # 나는솔로 전용 DB 스키마 (정리됨)
+└── README.md             # 프로젝트 개요 (업데이트됨)
+```
+
+## 🔧 Technical Stack
+
+### Frontend Layer
+- **UI Framework**: React 19 with Server Components
+- **Routing**: App Router with file-based routing
+- **State Management**: React hooks (useState, useEffect)
+- **Styling**: Tailwind CSS v4 with CSS variables for theming
+- **Fonts**: Geist Sans & Geist Mono via `next/font/google`
+
+### Backend Layer
+- **API Routes**: Next.js Route Handlers in `app/api/`
+- **Edge Functions**: Supabase Deno runtime for data collection
+- **Database**: PostgreSQL with Row Level Security (RLS)
+- **Authentication**: Supabase Auth (when needed)
+
+### Data Flow Architecture
+```
+나는솔로 뉴스 수집 시스템:
+User Clicks "Run Collection" → app/page.tsx → /api/crawl/manual → crawl_manual Edge Function → Database
+     ↑                                                                                          ↓
+     └── Auto Refresh Articles ← Collection Results (inserted/skipped/errors) ← RSS Processing ←
+
+Articles Display Flow:
+Page Load/Refresh → app/page.tsx → /api/articles → Supabase REST API → articles + sources tables
+     ↑                                                                              ↓
+     └── Display Articles List ← JSON Response (sorted by published_at desc) ←────┘
+
+Complete Process:
+1. User triggers collection via "Run Collection" button
+2. Frontend calls Next.js API route (/api/crawl/manual)
+3. API route proxies to Supabase Edge Function (crawl_manual)
+4. Edge Function fetches enabled sources from database (나는솔로 관련 RSS)
+5. For each source: fetch RSS → parse → normalize → deduplicate → store
+6. Return statistics (inserted, total, skipped, errors)
+7. Frontend displays results and auto-refreshes articles
+8. Articles API (/api/articles) fetches latest articles sorted by published_at
+9. Display articles with thumbnails, titles, summaries, and metadata
+```
+
+## 🛡️ Security Principles
+
+### Environment Variables
+- **Client-side**: Only `NEXT_PUBLIC_*` prefixed variables
+- **Server-side**: Service role keys NEVER exposed to frontend
+- **Production**: Always use server proxy for sensitive operations
+
+### Data Access Patterns
+- **Frontend**: Use anon key with RLS policies
+- **Server Routes**: Use service role key for admin operations
+- **Edge Functions**: Use service role key with proper validation
+
+## 🔄 Development Workflow
+
+### File References (리팩토링 후)
+- Main configuration: [package.json](mdc:package.json)
+- TypeScript config: [tsconfig.json](mdc:tsconfig.json)
+- Next.js config: [next.config.ts](mdc:next.config.ts)
+- Database schema: [database-setup.sql](mdc:database-setup.sql) (나는솔로 전용으로 정리됨)
+- Project guide: [README.md](mdc:README.md) (완전 재작성됨)
+- Main UI: [app/page.tsx](mdc:app/page.tsx) (나는솔로 브랜딩 적용)
+- API proxy: [app/api/crawl/manual/route.ts](mdc:app/api/crawl/manual/route.ts) (간소화됨)
+- Articles API: [app/api/articles/route.ts](mdc:app/api/articles/route.ts) (최적화됨)
+- Edge Function v12: [supabase/functions/crawl_manual/index.ts](mdc:supabase/functions/crawl_manual/index.ts) (완전 리팩토링)
+
+### 제거된 파일들
+- ❌ `doc/devguide.mdc` (README.md로 통합)
+- ❌ `SETUP.md` (README.md로 통합)
+- ❌ `app/api/crawl/manual/test-route.ts` (개발 완료로 불필요)
+- ❌ `deploy-function.sh` (MCP 도구 사용)
+- ❌ `public/file.svg`, `globe.svg`, `vercel.svg`, `window.svg` (미사용 아이콘)
+
+### Code Organization
+- **Components**: Keep in `app/` directory with co-location
+- **Utilities**: Place in `lib/` with clear naming
+- **Types**: Define inline or in separate `.d.ts` files
+- **API Routes**: Mirror Edge Function structure in `app/api/`
+
+## 🚀 Deployment Strategy
+
+### Environment Setup
+- **Development**: API proxy to Edge Functions with environment variables
+- **Production**: Server proxy pattern with secure environment variables
+- **Database**: Use migrations for schema changes via [database-setup.sql](mdc:database-setup.sql)
+- **Functions**: Deploy via Supabase CLI or MCP tools
+- **MCP Integration**: Supabase MCP server for direct database/function management
+
+### Required Environment Variables
+```bash
+# .env.local
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...  # Server-side only, never expose to client
+```
+
+### Performance Considerations
+- **Images**: Use `next/image` for optimization
+- **Fonts**: Preload with `next/font` and CSS variables
+- **Caching**: Leverage Next.js caching for API routes
+- **Database**: Index frequently queried columns (sources.enabled, articles.hash, articles.published_at)
+
+## 📊 Data Collection System
+
+### Core Functionality
+- **Manual Collection**: User-triggered content collection via "Run Collection" button
+- **RSS Processing**: Fetch and parse RSS feeds from multiple sources
+- **Data Normalization**: Standardize article format (title, summary, URL, author, dates)
+- **Deduplication**: SHA-256 hash-based duplicate prevention
+- **Error Handling**: Fail-soft approach - one source failure doesn't stop others
+- **Statistics Tracking**: Real-time collection metrics (inserted, skipped, errors)
+
+### Database Schema
+```sql
+-- Sources: External content sources configuration
+sources (id, name, type, url, enabled, last_success_at, status_msg)
+
+-- Articles: Collected and normalized content  
+articles (id, source_id, title, summary, original_url, canonical_url, 
+         thumbnail_url, author, published_at, fetched_at, status, 
+         raw_meta, hash, created_at)
+
+-- Key Indexes:
+- ux_articles_hash (unique constraint for deduplication)
+- idx_sources_enabled (performance for active source queries)
+- idx_articles_published (chronological sorting)
+```
+
+### Collection Process
+1. **Source Management**: Enable/disable sources in database
+2. **RSS Fetching**: HTTP requests with proper user agents and headers
+3. **Content Parsing**: Regex-based XML parsing (MVP approach)
+4. **Data Validation**: Required fields check (title, URL)
+5. **Hash Generation**: `canonical_url::title` for deduplication
+6. **Database Storage**: Individual inserts with duplicate error handling
+7. **Status Updates**: Source success/error status tracking
+
+### Future Enhancements
+- **HTML Scraping**: Beyond RSS feeds
+- **API Integration**: REST/GraphQL endpoints
+- **Cron Scheduling**: Automated collection
+- **Content Approval**: Workflow for article review
+- **Advanced Parsing**: Dedicated XML/HTML parser libraries
